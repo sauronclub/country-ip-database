@@ -40,6 +40,7 @@ jobs:
           git config --local user.name "GitHub Action"
           git add data/
           git diff --quiet && git diff --staged --quiet || git commit -m "auto: update IP ranges $(date +%Y-%m-%d)"
+          git pull --rebase origin main
           git push
       
       # 6. 上传到R2
