@@ -4,55 +4,48 @@
 [![CI](https://github.com/your-username/global-ip-ranges/actions/workflows/update.yml/badge.svg)](https://github.com/your-username/global-ip-ranges/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-Lightweight tools to download delegated IP allocations from the five Regional Internet Registries (RIRs), parse them into per-country CIDR lists and optionally upload the generated data to Cloudflare R2 (S3-compatible).
+一个轻量级的工具集合，用于从五大区域性注册机构（RIR）下载 delegated 分配表，解析并按国家生成 IP 段（CIDR）JSON 文件，且可选择将生成的数据上传到 Cloudflare R2（兼容 S3 API）。
 
-Features
-- Download the latest delegated data from APNIC, ARIN, RIPE, LACNIC and AFRINIC
-- Parse IPv4/IPv6 allocations into country-level CIDR lists
-- Output JSON files under `data/ipv4/` and `data/ipv6/`
-- Optional upload to Cloudflare R2 using the S3 API
-- GitHub Actions workflow to update on schedule and push results
+主要功能
+- 从 APNIC / ARIN / RIPE / LACNIC / AFRINIC 拉取最新 delegated 数据
+- 将 IPv4 / IPv6 分配解析为按国家分组的 CIDR 列表
+- 输出 JSON 文件到 `data/ipv4/` 与 `data/ipv6/`
+- 可选：将生成的 `data/` 上传到 Cloudflare R2
+- 提供 GitHub Actions 工作流以自动定期更新
 
-Table of contents
-- Quick start
-- Scripts
-- Configuration & environment
-- GitHub Actions
-- Contributing
-- License
+目录结构
 
-Project layout
 ```
 global-ip-ranges/
 ├─ README.md
 ├─ RIR_URLS.txt
 ├─ .github/workflows/update.yml
 ├─ scripts/
-│  ├─ update_ranges.py    # download + parse -> data/
-│  └─ upload_to_r2.py     # upload data/ -> R2 (S3 API)
-└─ data/                  # generated output (not checked in by default)
+│  ├─ update_ranges.py    # 下载 + 解析 -> data/
+│  └─ upload_to_r2.py     # 上传 data/ -> R2 (S3 API)
+└─ data/                  # 运行脚本后生成（通常不纳入版本控制）
 ```
 
-Quick start
+快速开始
 
-Requirements
-- Python 3.8+ (CI uses 3.11)
+先决条件
+- Python 3.8+（CI 使用 3.11）
 - pip
 
-Install dependencies
+安装依赖（推荐先添加 `requirements.txt`，可让我为你创建）
 
 ```powershell
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Generate the per-country IP lists locally
+生成国家级 IP 列表（本地运行）
 
 ```powershell
 python scripts/update_ranges.py
 ```
 
-Upload generated data to Cloudflare R2
+上传生成的数据到 Cloudflare R2
 
 ```powershell
 $env:R2_ACCOUNT_ID = "<your-account-id>"
@@ -62,68 +55,80 @@ $env:R2_BUCKET = "<your-bucket-name>"
 python scripts/upload_to_r2.py
 ```
 
-After success you will find files like `data/ipv4/CN.json` and `data/ipv6/CN.json` containing arrays of CIDR strings for each country.
+运行成功后，你会在 `data/ipv4/` 与 `data/ipv6/` 下看到以国家两字母代码命名的 JSON 文件（例如 `CN.json`），每个文件是一个 CIDR 字符串数组。
 
-Scripts
+脚本说明
 
-- scripts/update_ranges.py
-	- Downloads RIR delegated files and merges them.
-	- Parses lines for `ipv4` and `ipv6` entries, filters out comments and reserved/unknown country codes (`ZZ`).
-	- IPv4 entries currently convert `count` to a single CIDR using log2 (works when count is a power of two).
-	- IPv6 entries use the provided prefix length.
-	- Writes JSON arrays to `data/ipv4/<CC>.json` and `data/ipv6/<CC>.json`.
+- `scripts/update_ranges.py`
+	- 从 RIR 的 `delegated-*-latest` 文件下载并合并。
+	- 跳过注释行以及保留/未知国家条目（例如 `ZZ`）。
+	- IPv4：将数量（count）转换为 CIDR（当前实现用 log2 计算前缀，适用于 count 为 2 的幂的情况）。
+	- IPv6：使用给定的前缀长度直接保存。
+	- 输出为 `data/ipv4/<CC>.json` 与 `data/ipv6/<CC>.json`。
 
-- scripts/upload_to_r2.py
-	- Creates a boto3 S3 client pointed at Cloudflare R2 (endpoint uses account id).
-	- Recursively uploads `data/` files to a target bucket and sets `ContentType` and `CacheControl`.
+- `scripts/upload_to_r2.py`
+	- 使用 `boto3` 创建兼容 S3 的客户端，endpoint 基于 `R2_ACCOUNT_ID` 拼接为 R2 地址。
+	- 递归上传 `data/` 目录内容，按文件后缀设置 `ContentType` 并添加 `Cache-Control`。
 
-Configuration & environment
+配置与环境变量
 
-The upload script requires the following environment variables:
+上传脚本需要以下环境变量：
+
 - `R2_ACCOUNT_ID`
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET`
 
-Never commit secrets to the repository. Use GitHub Secrets for CI.
+切勿将密钥明文提交到仓库；在 GitHub Actions 中请使用仓库的 Secrets（Settings → Secrets & variables）。
 
 GitHub Actions
 
-The repository includes `.github/workflows/update.yml` which:
-- Runs weekly (cron) and can be manually triggered.
-- Installs dependencies, runs `update_ranges.py`, commits the `data/` folder (if changed) and uploads to R2.
+仓库自带 `.github/workflows/update.yml`：
 
-Make sure to populate the repository secrets:
-- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
+- 定期调度（每周）并支持手动触发（workflow_dispatch）。
+- 工作流会安装依赖、运行 `scripts/update_ranges.py` 生成 `data/`、在有变更时提交到仓库，并调用 `scripts/upload_to_r2.py` 上传到 R2（需要在 Secrets 中配置凭据）。
 
-Limitations & known issues
+请确保在仓库 Secrets 中设置：
 
-- IPv4 conversion assumes `count` is a power of two and converts it to one CIDR; for non-power-of-two allocations the current script may produce incorrect results or skip entries. Consider implementing a CIDR-splitting routine to cover arbitrary counts.
-- No retry/backoff on network errors; transient failures may abort the run.
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
 
-Recommended next steps
+已知限制与问题
 
-1. Add `requirements.txt` (I can add this for you).
-2. Implement IPv4 splitting so arbitrary allocation sizes become a minimal set of CIDRs.
-3. Add unit tests (pytest) for parsing and conversion logic and mock `boto3` for upload tests.
+- IPv4 转换目前假定 `count` 为 2 的幂并直接转换为单个 CIDR；对于非 2 的幂的分配，当前实现可能跳过或生成不准确的结果。建议实现更健壮的“拆分为最少CIDR列表”算法。
+- 缺少网络请求重试和退避策略，临时网络故障会导致脚本中止。
 
-Contributing
+建议的改进（可选）
 
-Contributions are welcome. Please open an issue for discussion or submit a pull request. If you plan to make breaking changes, open an issue first so we can coordinate.
+1. 添加 `requirements.txt`（我可以为你创建）。
+2. 实现 IPv4 拆分算法，以支持任意数量的 IPv4 分配并生成最少的 CIDR 列表。
+3. 增加单元测试（pytest），对解析、IPv4 转换和 upload 逻辑进行覆盖（upload 可 mock `boto3`）。
+4. 为下载和上传实现重试/退避策略与更详细的日志。
 
-Security
+贡献指南
 
-- Do not commit credentials. If credentials were committed accidentally, rotate them immediately and remove them from git history.
-- Use GitHub Secrets for CI environment variables.
+欢迎贡献。请先开 issue 讨论大改动，或直接提交 PR（附带测试优先）。
 
-License
+安全事项
 
-This repository does not contain a license file by default. If you want to publish this project as open source, add a `LICENSE` file (MIT or Apache-2.0 recommended).
+- 不要在仓库中提交凭据。如果凭据意外提交，请立即旋转并从历史中移除（例如使用 `git filter-repo` 或 BFG）。
+- 在 CI 中使用 GitHub Secrets 管理敏感信息，避免将其打印到日志中。
 
-中文说明（简短）
+许可证
 
-这是一个用于从五大 RIR 下载并按国家生成 IPv4/IPv6 CIDR 列表的工具，支持将结果上传到 Cloudflare R2。更多用法请参见上文英文说明。
+当前仓库未包含许可证文件。如果希望作为开源发布，建议添加 `LICENSE`（例如 MIT 或 Apache-2.0）。需要我帮你添加的话我可以直接创建 `LICENSE` 文件并在 README 中更新链接。
 
+常见问答（FAQ）
+
+- Q: `data/` 目录应该提交到仓库吗？
+- A: 通常不需要，但仓库 CI 已设置为可选地提交更新后的 `data/` 以便公开查看历史。如果你不想提交，请修改 workflow 中的提交步骤。
+
+下一步我可以为你执行（请选择一项）：
+
+- 创建 `requirements.txt` 并在 CI 中使用它（建议）；
+- 实现并测试 IPv4 拆分逻辑（需要添加测试文件）；
+- 添加 MIT `LICENSE` 并更新 README 徽章与链接。
+
+告诉我你要我继续哪项，我会接着执行并更新任务列表与文件。
 ---
 
 If you'd like, I can now:
