@@ -1,36 +1,42 @@
 # Global Country IP Database
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Countries](https://img.shields.io/badge/Countries-239-green.svg)
 
-## 项目概述
+## 📖 项目简介
 
-提供全球 **239个国家/地区** 的IP地址段（CIDR）数据整理，按国家分组的IPv4/IPv6地址库。
+全球 **239个国家/地区** 的IP地址段（CIDR）数据库，按国家分组整理的IPv4/IPv6地址库。
 
-## 核心价值
+> 💡 **无需部署**：可直接下载 `data/` 目录下的JSON文件使用
 
-一键获取各国IP地址段数据，适用于：
-- 地理IP定位
-- 网络安全分析
-- 区域访问控制
-- IP地址归属查询
+## 🎯 核心价值
 
-## 数据来源
+| 使用场景 | 说明 |
+|---------|------|
+| 地理IP定位 | 查询IP归属国家/地区 |
+| 网络安全 | 区域IP封禁/白名单 |
+| 访问控制 | 基于地域的访问策略 |
+| 数据分析 | 区域流量统计 |
+
+## 🌐 数据来源
 
 数据源自五大区域互联网注册机构（RIR）：
+
 - **APNIC** - 亚太地区
-- **ARIN** - 北美地区  
+- **ARIN** - 北美地区
 - **RIPE** - 欧洲地区
 - **LACNIC** - 拉丁美洲
 - **AFRINIC** - 非洲地区
 
-## 快速使用
+## 🚀 快速开始
 
-### 获取数据
+### 方式一：直接下载使用（推荐）
 
 ```bash
 # 克隆仓库
 git clone https://github.com/sauronclub/country-ip-database.git
-cd country-ip-database
+cd country-ip-database/data/
 
-# 更新数据
-python scripts/update_ranges.py
+# 获取中国IP段
+cat ipv4/CN.json
